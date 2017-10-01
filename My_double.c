@@ -217,7 +217,7 @@ void big_bin_inc(struct big_bin *a , int x){//单独的一位+1
 	}
 	if (a -> v[len]) len++;
 	a -> len = len;
-	for (int i=len-1;i >= 0;i--) printf("%d",a->v[i]);putchar('\n');
+	//for (int i=len-1;i >= 0;i--) printf("%d",a->v[i]);putchar('\n');
 }
 void big_bin_com(struct big_bin *a){//求补码
 	int len = a -> len;
@@ -253,7 +253,7 @@ void big_bin_mul(const struct big_bin *a , const struct big_bin *b , struct big_
 			for (int j = 0 ; j < len_b ; j++)
 				if (b -> v[j])
 					big_bin_inc(res , i + j);
-			putchar('\n');
+			//putchar('\n');
 		}
 	if (res -> v[len]) len++;
 	res -> len = len;
@@ -274,6 +274,28 @@ void big_bin_output(const struct big_bin *a){
 	for (int i = len - 1 ; i >= 0 ; i--)
 		putchar('0' + a -> v[i]);
 	putchar('\n');
+}
+
+void big_bin_rounding(struct big_bin *a){//浮点数的核心
+	int len = a -> len;
+	if (len <= double_n) return;
+	int key_point = len - double_n - 1;
+	if (a -> v[key_point]){//舍去的位是1
+		char flag = 1;//判断后面是否全为0
+		for (int i = key_point - 1 ; i >= 0 ; i--)
+			if (a -> v[i])
+				flag = 0;
+		if (flag){//全为0
+			if (a -> v[key_point + 1]){
+				big_bin_inc(a , key_point + 1);
+			}
+		}
+		else{//不全为0
+			big_bin_inc(a , key_point + 1);
+		}
+	}
+	for (int i = key_point ; i >= 0 ; i--)
+		a -> v[i] = 0;
 }
 
 //===========================================================================
@@ -386,9 +408,7 @@ int main(){
 	write(&a);*/
 	scanf("%s",s);
 	big_bin_input(&binary_1,s);
-	scanf("%s",s);
-	big_bin_input(&binary_2,s);
-	big_bin_mul(&binary_1,&binary_2,&binary_res);
-	big_bin_output(&binary_res);
+	big_bin_rounding(&binary_1);
+	big_bin_output(&binary_1);
 	return 0;
 }
