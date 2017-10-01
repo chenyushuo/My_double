@@ -68,6 +68,13 @@ struct tni_gib{
 struct big_int power2[double_tot_siz] , res_int;
 struct tni_gib power5[double_tot_siz] , res_dec;
 
+void clear_res(){
+	res_int . len = 1;
+	memset(res_int . v , 0 , sizeof(res_int . v));
+	res_dec . len = 1;
+	memset(res_dec . v , 0 , sizeof(res_dec . v));
+}
+
 #define big_int_carry \
 if (a -> v[i] >= 10){ \
 	a -> v[i + 1] += a -> v[i] / 10; \
@@ -164,10 +171,7 @@ void init_output(){
 void clear_output(){
 	if (is_init_output == 0)
 		init_output();
-	res_int . len = 1;
-	memset(res_int . v , 0 , sizeof(res_int . v));
-	res_dec . len = 1;
-	memset(res_dec . v , 0 , sizeof(res_dec . v));
+	clear_res();
 }
 void main_output(){
 	for (int i = res_int.len - 1 ; i >= 0 ; i--){
@@ -196,7 +200,7 @@ void tni_gib_output(struct tni_gib *a){
 //以下是double所用的2进制高精度
 struct big_bin{
 	int len;
-	char v[(double_k << 1) + 5];
+	char v[double_tot_siz + 5];
 };//从0开始，正序位数升高
 
 struct big_bin binary_1 , binary_2 , binary_res;
@@ -253,7 +257,6 @@ void big_bin_mul(const struct big_bin *a , const struct big_bin *b , struct big_
 			for (int j = 0 ; j < len_b ; j++)
 				if (b -> v[j])
 					big_bin_inc(res , i + j);
-			//putchar('\n');
 		}
 	if (res -> v[len]) len++;
 	res -> len = len;
@@ -358,9 +361,89 @@ void get_string(const struct My_double *a){
 	putchar('\n');
 }
 
+void My_double_clear(struct My_double *a){
+	memset(a -> digit , 0 , sizeof(a -> digit));
+}
+
 void read(struct My_double *a){
 	static char str[double_tot_siz];
 	scanf("%s",str);
+	My_double_clear(a);
+	int len = 0;
+	for (int i = 0 ; str[i] ; i++)
+		len++;
+	
+	static char M[double_tot_siz];
+	memset(M , 0 , sizeof(M));
+	int start_M = -1;
+	int end_M = -1;
+	if (str[0] == '+' || str[1] == '-'){
+		start_M = 1;
+		if (str[0] == '-')
+			set_s(a , 1);
+	}
+	else start_M = 0;
+	for (int i = start_M ; i < len ; i++)
+		if (!('0' <= str[i + 1] && str[i + 1] <= '9') && str[i + 1] != '.'){
+			end_M = i;
+			break;
+		}
+		
+	int point = -1;
+	for (int i = start_M ; i <= end_M ; i++)
+		if (str[i] == '.'){
+			point = i - start_M;
+			break;
+		}
+	
+	int M_len = 0;
+	for (int i = start_M ; i <= end_M ; i++){
+		if (str[i] == '.') continue;
+		M[M_len++] = str[i] - '0';
+	}
+	if (point == -1)
+		point = M_len;
+	//如此的话，M[0,point)是整数，剩下的为小数
+	
+	int start_E = -1;
+	char is_negative_E = 0;
+	for (int i = 0 ; i < len ; i++)
+		if (str[i] == 'E' || str[i] == 'e'){
+			if (str[i + 1] == '+' || str[i + 1] == '-'){
+				start_E = i + 2;
+				if (str[i + 1] == '-')
+					is_negative_E = 1;
+			}
+			else start_E = i + 1;
+			break;
+		}
+	
+	int E = 0;
+	if (start_E != -1){
+		for (int i = start_E ; i < len ; i++)
+			E = E * 10 + str[i] - '0';
+		if (is_negative_E)
+			E = -E;
+	}
+	
+	point += E;
+	M_len = max(M_len , point);
+	int len_int = point;
+	int len_dec = M_len - len_int;
+	clear_res();
+	//for (int i=0;i<M_len;i++) printf("%d",M[i]);putchar('\n');
+	res_int . len = len_int;//res_int是big_int，而且是从0开始 && 正序位数升高
+	for (int i = 0 ; i < len_int ; i++){
+		res_int . v[i] = M[len_int - i - 1];
+	}
+	res_dec . len = len_dec;//res_dec是tni_gib，而且是从1开始 && 逆序位数升高
+	for (int i = len_int ; i < M_len ; i++){
+		res_dec . v[i - len_int + 1] = M[i];
+	}
+	//big_int_output(&res_int);
+	//tni_gib_output(&res_dec);
+	
+	big_bin_clear(&binary_res);
 	
 }
 void write(const struct My_double *a){
@@ -406,9 +489,11 @@ int main(){
 	get_string(&a);
 	putchar('\n');
 	write(&a);*/
-	scanf("%s",s);
+	/*scanf("%s",s);
 	big_bin_input(&binary_1,s);
 	big_bin_rounding(&binary_1);
-	big_bin_output(&binary_1);
+	big_bin_output(&binary_1);*/
+	read(&a);
+	
 	return 0;
 }
