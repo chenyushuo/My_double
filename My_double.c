@@ -40,8 +40,15 @@ const char test_double[] = "0000000000001000000000000000000000000000000000000000
 #define double_n         (52)
 #define double_tot_siz   (double_bias + double_n)
 
+//小函数
 #define min(a,b) ((a)<(b) ? (a) : (b))
 #define max(a,b) ((a)>(b) ? (a) : (b))
+
+void swap(char *a , char *b){
+	char t = *a;
+	*a = *b;
+	*b = t;
+}
 
 //===========================================================================
 //以下是double所用的10进制高精度
@@ -142,7 +149,7 @@ void init_output(){
 	power2[0] . v[0] = 1;
 	for (int i = 1 ; i < double_tot_siz ; i++){
 		power2[i] = power2[i - 1];
-		big_int_shl( &power2[i] );
+		big_int_shl(&power2[i]);
 	}
 	
 	//power5
@@ -151,7 +158,7 @@ void init_output(){
 	power5[1] . v[1] = 5;
 	for (int i = 2 ; i < double_tot_siz ; i++){
 		power5[i] = power5[i - 1];
-		tni_gib_mul( &power5[i] );
+		tni_gib_mul(&power5[i]);
 	}
 }
 void clear_output(){
@@ -187,6 +194,87 @@ void tni_gib_output(struct tni_gib *a){
 
 //===========================================================================
 //以下是double所用的2进制高精度
+struct big_bin{
+	int len;
+	char v[(double_k << 1) + 5];
+};//从0开始，正序位数升高
+
+struct big_bin binary_1 , binary_2 , binary_res;
+
+void big_bin_clear(struct big_bin *a){
+	a -> len = 1;
+	memset(a -> v , 0 , sizeof(a -> v));
+}
+void big_bin_inc(struct big_bin *a , int x){//单独的一位+1
+	int len = max(a -> len , x + 1);
+	a -> v[x] ++;
+	for (int i = x ; i < len ; i++){
+		if (a -> v[i] == 2){
+			a -> v[i] = 0;
+			a -> v[i + 1] ++;
+		}
+		else break;
+	}
+	if (a -> v[len]) len++;
+	a -> len = len;
+	for (int i=len-1;i >= 0;i--) printf("%d",a->v[i]);putchar('\n');
+}
+void big_bin_com(struct big_bin *a){//求补码
+	int len = a -> len;
+	for (int i = 0 ; i < len ; i++)
+		a -> v[i] ^= 1;
+	big_bin_inc(a , 0);
+	if (a -> len == len + 1){
+		a -> v[len] = 0;
+		a -> len = len;
+	}
+}
+void big_bin_add(const struct big_bin *a , const struct big_bin *b , struct big_bin *res){//带补码的加法
+	int len_a = a -> len;
+	int len_b = b -> len;
+	int len = max(len_a , len_b);
+	*res = *a;
+	for (int i = 0 ; i < len_b ; i++)
+		if (b -> v[i]){
+			big_bin_inc(res , i);
+		}
+	if (res -> v[len])
+		res -> v[len] = 0;
+	while (res -> v[len - 1] == 0) len--;
+	res -> len = len;
+}
+void big_bin_mul(const struct big_bin *a , const struct big_bin *b , struct big_bin *res){//不带补码的乘法
+	int len_a = a -> len;
+	int len_b = b -> len;
+	int len = len_a + len_b - 1;
+	big_bin_clear(res);
+	for (int i = 0 ; i < len_a ; i++)
+		if (a -> v[i]){
+			for (int j = 0 ; j < len_b ; j++)
+				if (b -> v[j])
+					big_bin_inc(res , i + j);
+			putchar('\n');
+		}
+	if (res -> v[len]) len++;
+	res -> len = len;
+}
+
+void big_bin_input(struct big_bin *a , const char *str){
+	int len = 0;
+	big_bin_clear(a);
+	for (int i = 0 ; str[i] ; i++)
+		a -> v[len++] = str[i] - '0';
+	for (int i = 0 , j = len - 1 ; i < j ; i++ , j--)
+		swap(a -> v + i , a -> v + j);
+	while (a -> v[len - 1] == 0) len--;
+	a -> len = len;
+}
+void big_bin_output(const struct big_bin *a){
+	int len = a -> len;
+	for (int i = len - 1 ; i >= 0 ; i--)
+		putchar('0' + a -> v[i]);
+	putchar('\n');
+}
 
 //===========================================================================
 //以下是double
@@ -245,9 +333,12 @@ void get_string(const struct My_double *a){
 	for (int i = double_tot_bit - 1 ; i >= 0 ; i--){
 		putchar('0' + get_digit(a , i));
 	}
+	putchar('\n');
 }
 
 void read(struct My_double *a){
+	static char str[double_tot_siz];
+	scanf("%s",str);
 	
 }
 void write(const struct My_double *a){
@@ -289,9 +380,15 @@ char s[70];
 
 int main(){
 	//scanf("%s",s);
-	set_string(&a,test_double);
+	/*set_string(&a,test_double);
 	get_string(&a);
 	putchar('\n');
-	write(&a);
+	write(&a);*/
+	scanf("%s",s);
+	big_bin_input(&binary_1,s);
+	scanf("%s",s);
+	big_bin_input(&binary_2,s);
+	big_bin_mul(&binary_1,&binary_2,&binary_res);
+	big_bin_output(&binary_res);
 	return 0;
 }
