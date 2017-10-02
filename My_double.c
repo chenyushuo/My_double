@@ -129,6 +129,8 @@ void tni_gib_add(struct tni_gib *a , struct tni_gib *b){
 	int len = max(a -> len , b -> len);
 	for (int i = len ; i ; i--)
 		a -> v[i] += b -> v[i];
+	for (int i = len ; i ; i--)
+		tni_gib_carry;
 	a -> len = len;
 }
 void tni_gib_mul(struct tni_gib *a){
@@ -647,7 +649,7 @@ void write(const struct My_double *a){
 			}
 		main_output();
 	}
-
+	putchar('\n');
 }
 //位数与二的幂的对应关系
 //1/0 x_1     x_2     x_3     ... x_52
@@ -658,15 +660,6 @@ struct My_double a;
 char s[70];
 
 int main(){
-	scanf("%s",s);
-	set_string(&a,s);
-	get_string(&a);
-	putchar('\n');
-	write(&a);
-	/*scanf("%s",s);
-	big_bin_input(&binary_1,s);
-	big_bin_rounding(&binary_1);
-	big_bin_output(&binary_1);*/
 	read(&a);
 	write(&a);
 	return 0;
