@@ -75,6 +75,13 @@ void clear_res(){
 	memset(res_dec . v , 0 , sizeof(res_dec . v));
 }
 
+char big_int_is_zero(const struct big_int *a){
+	return a -> len == 1 && a -> v[0] == 0;
+}
+char tni_gib_is_zero(const struct tni_gib *a){
+	return a -> len == 1 && a -> v[1] == 0;
+}
+
 #define big_int_carry \
 if (a -> v[i] >= 10){ \
 	a -> v[i + 1] += a -> v[i] / 10; \
@@ -107,7 +114,7 @@ int big_int_shr(struct big_int *a){
 		rest = a -> v[i] & 1;
 		a -> v[i] >>= 1;
 	}
-	if (a -> v[len - 1] == 0) len--;
+	if (len > 1 && a -> v[len - 1] == 0) len--;
 	a -> len = len;
 	return rest;
 }
@@ -142,7 +149,7 @@ int tni_gib_shl(struct tni_gib *a){
 		a -> v[i] <<= 1;
 	for (int i = len ; i ; i--)
 		tni_gib_carry;
-	if (a -> v[len] == 0) len--;
+	if (len > 1 && a -> v[len] == 0) len--;
 	int res = a -> v[0];
 	a -> v[0] = 0;
 	return res;
@@ -262,13 +269,18 @@ void big_bin_mul(const struct big_bin *a , const struct big_bin *b , struct big_
 	res -> len = len;
 }
 
+void big_bin_reverse(struct big_bin *a){
+	int len = a -> len;
+	for (int i = 0 , j = len - 1 ; i < j ; i++ , j--)
+		swap(a -> v + i , a -> v + j);
+}
+
 void big_bin_input(struct big_bin *a , const char *str){
 	int len = 0;
 	big_bin_clear(a);
 	for (int i = 0 ; str[i] ; i++)
 		a -> v[len++] = str[i] - '0';
-	for (int i = 0 , j = len - 1 ; i < j ; i++ , j--)
-		swap(a -> v + i , a -> v + j);
+	big_bin_reverse(a);
 	while (a -> v[len - 1] == 0) len--;
 	a -> len = len;
 }
@@ -279,16 +291,22 @@ void big_bin_output(const struct big_bin *a){
 	putchar('\n');
 }
 
+char big_bin_from_x_is_zero(struct big_bin *a , int x){//判断 x 位后面是否全为0
+	char flag = 1;
+	for (int i = x ; i >= 0 ; i--)
+		if (a -> v[i])
+			flag = 0;
+	return flag;
+}
+char big_bin_is_zero(struct big_bin *a){
+	return a -> len == 1 && a -> v[0] == 0;
+}
 void big_bin_rounding(struct big_bin *a){//浮点数的核心
 	int len = a -> len;
 	if (len <= double_n) return;
 	int key_point = len - double_n - 1;
 	if (a -> v[key_point]){//舍去的位是1
-		char flag = 1;//判断后面是否全为0
-		for (int i = key_point - 1 ; i >= 0 ; i--)
-			if (a -> v[i])
-				flag = 0;
-		if (flag){//全为0
+		if (big_bin_from_x_is_zero(a , key_point - 1)){//全为0
 			if (a -> v[key_point + 1]){
 				big_bin_inc(a , key_point + 1);
 			}
@@ -365,13 +383,64 @@ void My_double_clear(struct My_double *a){
 	memset(a -> digit , 0 , sizeof(a -> digit));
 }
 
+char My_double_str[double_tot_siz];
+void get_from_rounding(struct My_double *a , struct big_bin *binary , int original_E){
+	big_bin_output(binary);
+	printf("%d\n",original_E);
+	int len = binary -> len;
+	int new_E = original_E + len - 1;
+	int exp = 0;
+	if (new_E > double_bias){
+		if (get_s(a)) set_string(a , negative_inf);
+		else set_string(a , positive_inf);
+	}
+	if (new_E >= 1 - double_bias){//normalized
+		exp = new_E + double_bias;
+		binary -> v[len - 1] = 0;
+		len--;
+		binary -> len = len;
+	}
+	else if (new_E == -double_bias){//denormalized
+		new_E++;
+		exp = 0;
+	}
+	else{//0
+		if (get_s(a)) set_string(a , negative_zero);
+		else set_string(a , positive_zero);
+		return;
+	}
+	
+	big_bin_rounding(binary);
+	if (big_bin_is_zero(binary)){		
+		if (get_s(a)) set_string(a , negative_zero);
+		else set_string(a , positive_zero);
+		return;
+	}
+	
+	printf("new_E = %d exp = %d\n",new_E,exp);
+	big_bin_output(binary);
+	
+	for (int i = 0 , j = double_n ; i < double_k ; i++ , j++)
+		set_digit(a , j , (exp >> i) & 1);
+		
+	for (int i = len - 1 , j = double_n - 1 ; i >= 0 || j >= 0 ; i-- , j--)//设置frac
+		if (i < 0){
+			set_digit(a , j , 0);
+		}
+		else{
+			set_digit(a , j , binary -> v[i]);
+		}
+	
+	get_string(a);
+}
+
 void read(struct My_double *a){
 	static char str[double_tot_siz];
 	scanf("%s",str);
 	My_double_clear(a);
-	int len = 0;
+	int str_len = 0;
 	for (int i = 0 ; str[i] ; i++)
-		len++;
+		str_len++;
 	
 	static char M[double_tot_siz];
 	memset(M , 0 , sizeof(M));
@@ -383,7 +452,7 @@ void read(struct My_double *a){
 			set_s(a , 1);
 	}
 	else start_M = 0;
-	for (int i = start_M ; i < len ; i++)
+	for (int i = start_M ; i < str_len ; i++)
 		if (!('0' <= str[i + 1] && str[i + 1] <= '9') && str[i + 1] != '.'){
 			end_M = i;
 			break;
@@ -405,28 +474,28 @@ void read(struct My_double *a){
 		point = M_len;
 	//如此的话，M[0,point)是整数，剩下的为小数
 	
-	int start_E = -1;
-	char is_negative_E = 0;
-	for (int i = 0 ; i < len ; i++)
+	int start_dec_E = -1;
+	char is_negative_dec_E = 0;
+	for (int i = 0 ; i < str_len ; i++)
 		if (str[i] == 'E' || str[i] == 'e'){
 			if (str[i + 1] == '+' || str[i + 1] == '-'){
-				start_E = i + 2;
+				start_dec_E = i + 2;
 				if (str[i + 1] == '-')
-					is_negative_E = 1;
+					is_negative_dec_E = 1;
 			}
-			else start_E = i + 1;
+			else start_dec_E = i + 1;
 			break;
 		}
 	
-	int E = 0;
-	if (start_E != -1){
-		for (int i = start_E ; i < len ; i++)
-			E = E * 10 + str[i] - '0';
-		if (is_negative_E)
-			E = -E;
+	int dec_E = 0;
+	if (start_dec_E != -1){
+		for (int i = start_dec_E ; i < str_len ; i++)
+			dec_E = dec_E * 10 + str[i] - '0';
+		if (is_negative_dec_E)
+			dec_E = -dec_E;
 	}
 	
-	point += E;
+	point += dec_E;
 	M_len = max(M_len , point);
 	int len_int = point;
 	int len_dec = M_len - len_int;
@@ -443,8 +512,113 @@ void read(struct My_double *a){
 	//big_int_output(&res_int);
 	//tni_gib_output(&res_dec);
 	
-	big_bin_clear(&binary_res);
+	big_bin_clear(&binary_1);
+	int len_1 = 0;
+	while (!big_int_is_zero(&res_int)){
+		//printf("%d\n",len_1);
+		//printf("aaaa "),big_int_output(&res_int);
+		if (len_1 == double_bias + 1){
+			if (get_s(a)) set_string(a , negative_inf);
+			else set_string(a , positive_inf);
+			return;
+		}
+		binary_1 . v[len_1++] = big_int_shr(&res_int);
+		//printf("digit = %d\n",binary_1 . v[len_1 - 1]);
+	}
+	len_1 = max(len_1 , 1);
+	binary_1 . len = len_1;
+	//big_bin_output(&binary_1);
 	
+	big_bin_clear(&binary_2);
+	int len_2 = 0;
+	while (!tni_gib_is_zero(&res_dec)){
+		if (len_2 == double_bias + 1){
+			binary_2 . v[len_2++] = 1;
+			break;
+		}
+		binary_2 . v[len_2++] = tni_gib_shl(&res_dec);
+	}
+	len_2 = max(len_2 , 1);
+	binary_2 . len = len_2;
+	big_bin_reverse(&binary_2);
+	//big_bin_output(&binary_2);
+	
+	//binary_res最开始所要表达的数形式为 0.xxxxxx * 2^len_1 次方
+	//而后变成xxxx * 2 ^ ? 次方
+	big_bin_clear(&binary_res);
+	int len_res = 0;
+	int n = double_n + 1;
+	int bin_E = len_1;
+	if (len_1 >= n){//整数位数足够多
+		if (len_1 > n){//整数位数太多
+			if (big_bin_from_x_is_zero(&binary_1 , len_1 - n - 2)){//xxxx1000 xxxxxx的情况
+				binary_res . v[len_res++] = big_bin_is_zero(&binary_2) ^ 1;
+			}
+			else{//xxxx1xxx xxxx的情况
+				binary_res . v[len_res++] = 1;
+			}
+			binary_res . v[len_res++] = binary_1 . v[len_1 - n - 1];
+		}
+		else{//整数位数刚好
+			binary_res . v[len_res++] = big_bin_from_x_is_zero(&binary_2 , len_2 - 2) ^ 1;
+			binary_res . v[len_res++] = binary_2 . v[len_2 - 1];
+		}
+		for (int i = len_1 - n; i < len_1 ; i++)
+			binary_res . v[len_res++] = binary_1 . v[i];
+		bin_E -= n + 2;
+	}
+	else{//整数位数不够
+		if (big_bin_is_zero(&binary_1)){//这个是0.xxxxx 可能是denormalized的数
+			if (big_bin_is_zero(&binary_2)){
+				if (get_s(a)) set_string(a , negative_zero);
+				else set_string(a , positive_zero);
+				return;
+			}
+			int start = len_2 - 1;
+			for (int i = len_2 - 1 ; i >= 0 ; i--)
+				if (binary_2 . v[i]){
+					start = i;
+					break;
+				}
+			bin_E -= n + 2 + (len_2 - start - 1);
+			if (start + 1 <= n){//总位数不够 或 刚好
+				binary_res . v[len_res++] = 0;
+				binary_res . v[len_res++] = 0;
+				for (int i = 0 ; i < n - (start + 1) ; i++)
+					binary_res . v[len_res++] = 0;
+				for (int i = 0 ; i <= start ; i++)
+					binary_res . v[len_res++] = binary_2 . v[i];
+			}
+			else{//总位数足够
+				binary_res . v[len_res++] = big_bin_from_x_is_zero(&binary_2 , start - n - 1) ^ 1;
+				binary_res . v[len_res++] = binary_2 . v[start - n];
+				for (int i = start - n + 1; i <= start  ; i++)
+					binary_res . v[len_res++] = binary_2 . v[i];
+			}
+		}
+		else{
+			if (len_1 + len_2 <= n){//总位数不够 或 刚好
+				binary_res . v[len_res++] = 0;
+				binary_res . v[len_res++] = 0;
+				for (int i = 0 ; i < n - len_1 - len_2 ; i++)
+					binary_res . v[len_res++] = 0;
+				for (int i = 0 ; i < len_2 ; i++)
+					binary_res . v[len_res++] = binary_2 . v[i];
+			}
+			else{//总位数足够
+				puts("FUCK");
+				binary_res . v[len_res++] = big_bin_from_x_is_zero(&binary_2 , len_2 - (n - len_1) - 2) ^ 1;
+				binary_res . v[len_res++] = binary_2 . v[len_2 - (n - len_1) - 1];
+				for (int i = len_2 - (n - len_1) ; i < len_2 ; i++)
+					binary_res . v[len_res++] = binary_2 . v[i];
+			}
+			for (int i = 0 ; i < len_1 ; i++)
+				binary_res . v[len_res++] = binary_1 . v[i];
+			bin_E -= n + 2;
+		}
+	}
+	binary_res . len = len_res;
+	get_from_rounding(a , &binary_res , bin_E);
 }
 void write(const struct My_double *a){
 	int s = get_s(a);
@@ -484,16 +658,16 @@ struct My_double a;
 char s[70];
 
 int main(){
-	//scanf("%s",s);
-	/*set_string(&a,test_double);
+	scanf("%s",s);
+	set_string(&a,s);
 	get_string(&a);
 	putchar('\n');
-	write(&a);*/
+	write(&a);
 	/*scanf("%s",s);
 	big_bin_input(&binary_1,s);
 	big_bin_rounding(&binary_1);
 	big_bin_output(&binary_1);*/
 	read(&a);
-	
+	write(&a);
 	return 0;
 }
