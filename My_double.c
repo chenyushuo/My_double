@@ -365,43 +365,64 @@ void get_string(const struct My_double *a){
 	putchar('\n');
 }
 
+//double 的初始化
 void My_double_clear(struct My_double *a){
 	memset(a -> digit , 0 , sizeof(a -> digit));
 }
+void set_inf(struct My_double *a){
+	printf("overflow!\n");
+	if (get_s(a)) set_string(a , negative_inf);
+	else set_string(a , positive_inf);
+}
+void set_nan(struct My_double *a){
+	if (get_s(a)) set_string(a , negative_nan);
+	else set_string(a , positive_nan);
+}
+void set_zero(struct My_double *a){
+	printf("underflow!\n");
+	if (get_s(a)) set_string(a , negative_zero);
+	else set_string(a , positive_zero);
+}
 
-char My_double_str[double_tot_siz];
+//这个过程必须保证binary的首位为1
+//如果那个数是normalized的话就要删去首位的1
+//如果那个数是denormalized的话就不需要删去首位的1
+//如果那个数过大就设为inf，也就是overflow
+//如果那个数过小就设为0，也是underflow 这个可能在denormalized的数中发生
 void get_from_rounding(struct My_double *a , struct big_bin *binary , int original_E){
+	//printf("start rounding\n");
+	//big_bin_output(binary);
+	
 	int len = binary -> len;
 	int new_E = original_E + len - 1;
 	int exp = 0;
-	if (new_E > double_bias){
-		if (get_s(a)) set_string(a , negative_inf);
-		else set_string(a , positive_inf);
+	if (new_E > double_bias){//overflow
+		set_inf(a);
+		return;
 	}
 	if (new_E >= 1 - double_bias){//normalized
 		exp = new_E + double_bias;
-		binary -> v[len - 1] = 0;
-		len--;
+		binary -> v[--len] = 0;
 		binary -> len = len;
 	}
-	else if (new_E == -double_bias){//denormalized
-		new_E++;
+	else if (new_E >= -double_bias - double_n){//denormalized
+		for (int i = new_E + 1 ; i < 1 - double_bias ; i++)
+			binary -> v[len++] = 0;
+		binary -> len = len;
+		new_E = 1 - double_bias;
 		exp = 0;
-	}
-	else{//0
-		if (get_s(a)) set_string(a , negative_zero);
-		else set_string(a , positive_zero);
-		return;
 	}
 	
 	big_bin_rounding(binary);
-	if (big_bin_is_zero(binary)){		
-		if (get_s(a)) set_string(a , negative_zero);
-		else set_string(a , positive_zero);
+	//printf("complete rounding\n");
+	//big_bin_output(binary);
+	
+	if (big_bin_from_x_is_zero(binary , binary -> len - 1)){
+		set_zero(a);
 		return;
 	}
 	
-	for (int i = 0 , j = double_n ; i < double_k ; i++ , j++)
+	for (int i = 0 , j = double_n ; i < double_k ; i++ , j++)//设置exp
 		set_digit(a , j , (exp >> i) & 1);
 		
 	for (int i = len - 1 , j = double_n - 1 ; i >= 0 || j >= 0 ; i-- , j--)//设置frac
@@ -481,11 +502,11 @@ void read(struct My_double *a){
 	int len_dec = M_len - len_int;
 	clear_res();
 	//for (int i=0;i<M_len;i++) printf("%d",M[i]);putchar('\n');
-	res_int . len = len_int;//res_int是big_int，而且是从0开始 && 正序位数升高
+	res_int . len = max(len_int , 1);//res_int是big_int，而且是从0开始 && 正序位数升高
 	for (int i = 0 ; i < len_int ; i++){
 		res_int . v[i] = M[len_int - i - 1];
 	}
-	res_dec . len = len_dec;//res_dec是tni_gib，而且是从1开始 && 逆序位数升高
+	res_dec . len = max(len_dec , 1);//res_dec是tni_gib，而且是从1开始 && 逆序位数升高
 	for (int i = len_int ; i < M_len ; i++){
 		res_dec . v[i - len_int + 1] = M[i];
 	}
@@ -560,7 +581,7 @@ void read(struct My_double *a){
 					start = i;
 					break;
 				}
-			bin_E -= n + 2 + (len_2 - start - 1);
+			bin_E = 0 - (n + 2 + (len_2 - start - 1));
 			if (start + 1 <= n){//总位数不够 或 刚好
 				binary_res . v[len_res++] = 0;
 				binary_res . v[len_res++] = 0;
@@ -632,12 +653,79 @@ void write(const struct My_double *a){
 //1/0 x_1     x_2     x_3     ... x_52
 //2^E 2^(E-1) 2^(E-2) 2^(E-3)     2^(E-52)
 
+//将My_double转化为binary，而且binary要位移delta位
+//并且会在开头加两个0（因为要用补码来代替，不能让两个正数加的爆到负数）
+void from_My_double_to_big_bin(const struct My_double *a , struct big_bin *binary , const int delta){
+	big_bin_clear(binary);
+	int len_bin = 0;
+	for (int i = 0 ; i < delta ; i++)
+		binary -> v[len_bin++] = 0;
+	for (int i = 0 ; i < double_n ; i++)
+		binary -> v[len_bin++] = get_digit(a , i);
+	int exp = get_exp(a);
+	if (exp)//normalized
+		binary -> v[len_bin++] = 1;
+	binary -> v[len_bin++] = 0;
+	binary -> v[len_bin++] = 0;
+	binary -> len = len_bin;
+}
+
+void get_exp_and_E(const struct My_double *a , int *exp , int *E){
+	*exp = get_exp(a);
+	if (*exp)
+		*E = *exp - double_bias;
+	else
+		*E = 1 - double_bias;
+}
+
+void plus(const struct My_double *a , const struct My_double *b , struct My_double *c){
+	My_double_clear(c);
+	
+}
+void minus(const struct My_double *a , struct My_double *b , struct My_double *c){
+	int s = get_s(b);
+	set_s(b , s ^ 1);
+	plus(a , b , c);	
+	set_s(b , s);
+}
+void mul(const struct My_double *a , const struct My_double *b , struct My_double *c){
+	My_double_clear(c);
+	set_s(c , get_s(a) ^ get_s(b));
+	//这里有一些特殊情况
+	
+	//一般情况
+	from_My_double_to_big_bin(a , &binary_1 , 0);
+	from_My_double_to_big_bin(b , &binary_2 , 0);
+	big_bin_mul(&binary_1 , &binary_2 , &binary_res);
+	int exp_a , E_a;
+	int exp_b , E_b;
+	get_exp_and_E(a , &exp_a , &E_a);
+	get_exp_and_E(b , &exp_b , &E_b);
+	binary_res . len -= 4;//去掉开头的2*2个0
+	//big_bin_output(&binary_res);
+	//printf("E_a = %d E_b = %d\n" , E_a , E_b);
+	get_from_rounding(c , &binary_res , E_a + E_b - 2 * double_n);
+	//get_string(c);
+}
+void div(const struct My_double *a , const struct My_double *b , struct My_double *c){
+	My_double_clear(c);
+	
+}
 //===========================================================================
-struct My_double a;
+struct My_double a , b , c;
 char s[70];
 
 int main(){
-	read(&a);
-	write(&a);
+	/*read(&a);
+	write(&a);*/
+	/*read(&a),read(&b);
+	mul(&a , &b , &c);
+	write(&c);*/
+	scanf("%s",s);
+	set_string(&a , s);
+	scanf("%s",s);
+	set_string(&b , s);
+	mul(&a , &b , &c);
+	write(&c);
 	return 0;
 }

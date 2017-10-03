@@ -27,15 +27,19 @@ void set_double(uint64 *x,const char *s){
 int main(){
 	//scanf("%lf%c%lf",&a,&ch,&b);
 	double res;
-	uint64 *x=(uint64 *)(&res);
-	scanf("%lf",&res);
+	uint64 *x=(uint64 *)(&a);
+	char s[70];
+	scanf("%s",s);
+	set_double(x,s);
+	x=(uint64 *)(&b);
+	scanf("%s",s);
+	set_double(x,s);
+	ch='*';
+	printf("%.1200f\n",a);
+	printf("%.1200f\n",b);
+	//scanf("%lf",&res);
 	//write(*x);
-	//char s[70];
-	//scanf("%s",s);
-	//set_double(x,s);
-	//set_double(x,string("0000000010001000000000000000000000000000000000000000000000000000").c_str());
-	//write(*x);
-	printf("%.1200f\n",res);
+	//printf("%.1200f\n",res);
 	//printf("%e\n",res);
 	switch (ch){
 		case '+':
@@ -53,8 +57,9 @@ int main(){
 		case '*':
 			printf("%f\n",a*b);
 			res=a*b;
+			x=(uint64 *)(&res);
 			write(*x);
-			printf("%f\n",res);
+			printf("%.1200f\n",res);
 			break;
 		case '/':
 			printf("%f\n",a/b);
