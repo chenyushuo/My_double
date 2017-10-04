@@ -43,14 +43,15 @@ int main(){
 	printf(" (a <  b) = %d\n (a <= b) = %d\n (a >  b) = %d\n (a >= b) = %d\n (a != b) = %d\n (a == b) = %d\n" ,
 			 (a <  b)      , (a <= b)      , (a >  b)      , (a >= b)      , (a != b)      , (a == b) );
 	for(;;){*/
-	scanf("%lf%c%lf",&a,&ch,&b);
+	char op[2];
+	scanf("%lf%s%lf",&a,op,&b);
 	double res;
 	//read(a),read(b);
-	ch='/';
+//	ch='/';
 //	printf("%.1200f\n",a),write(a);
 //	printf("%.1200f\n",b),write(b);
 //	cout<<a<<' '<<b<<endl;
-	switch (ch){
+	switch (op[0]){
 		case '+':
 			res=a+b;
 //			write(res);

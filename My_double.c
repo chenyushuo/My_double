@@ -938,6 +938,7 @@ void div(const struct My_double *a , const struct My_double *b , struct My_doubl
 	get_exp_and_E(a , &exp_a , &E_a);
 	get_exp_and_E(b , &exp_b , &E_b);
 	int E_c = (E_a - double_n * 2 - 1) - E_b;
+	//乘2的原因是如果a是个denormalized的数或者a和b相近时，除法的头几位会是0，这个不算有效数字，故要用两倍的n
 	from_My_double_to_big_bin(a , &binary_1 , double_n * 2 + 1);
 	from_My_double_to_big_bin(b , &binary_2 , 0 );
 	//printf("binary_1 : "),big_bin_output(&binary_1);
@@ -947,25 +948,32 @@ void div(const struct My_double *a , const struct My_double *b , struct My_doubl
 	//printf("E_a = %d E_b = %d E_c = %d\n",E_a,E_b,E_c);
 	get_from_rounding(c , &binary_res , E_c);
 }
+
 //===========================================================================
 struct My_double a , b , c;
-char s[70];
+char op[2];
 
 int main(){
-	/*read(&a);
-	write(&a);*/
 	read(&a);
+	scanf("%s",op);
 	read(&b);
-//	write(&a),get_string(&a);
-//	write(&b),get_string(&b);
-	div(&a , &b , &c);
-//	get_string(&c);
+	switch (op[0]){
+		case '+':
+			plus(&a , &b , &c);
+			break;
+		case '-':
+			minus(&a , &b , &c);
+			break;
+		case '*':
+			mul(&a , &b , &c);
+			break;
+		case '/':			
+			div(&a , &b , &c);
+			break;
+		default:
+			puts("error!");
+			return 0;
+	}
 	write(&c);
-	/*scanf("%s",s);
-	set_string(&a , s);
-	scanf("%s",s);
-	set_string(&b , s);
-	mul(&a , &b , &c);
-	write(&c);*/
 	return 0;
 }
