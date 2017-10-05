@@ -36,6 +36,10 @@ void read(double &a){
 	set_double(x,s);
 }
 int main(){
+	/*for (;;){
+	read(a);
+	printf("%.1200f\n",a);
+	}*/
 /*	cout<<"FUCK"<<endl;
 	double nan=fabs(sqrt(-1)) , inf=1.0/0.0;
 	a=-0.0 , b=-0.0;
@@ -43,36 +47,31 @@ int main(){
 	printf(" (a <  b) = %d\n (a <= b) = %d\n (a >  b) = %d\n (a >= b) = %d\n (a != b) = %d\n (a == b) = %d\n" ,
 			 (a <  b)      , (a <= b)      , (a >  b)      , (a >= b)      , (a != b)      , (a == b) );
 	for(;;){*/
+	//freopen("debug.in","r",stdin);
 	char op[2];
 	scanf("%lf%s%lf",&a,op,&b);
 	double res;
 	//read(a),read(b);
 //	ch='/';
-//	printf("%.1200f\n",a),write(a);
-//	printf("%.1200f\n",b),write(b);
+	printf("%.1200f\n",a),write(a);
+	printf("%.1200f\n",b),write(b);
 //	cout<<a<<' '<<b<<endl;
 	switch (op[0]){
 		case '+':
 			res=a+b;
-//			write(res);
-			printf("%.1200f\n",res);
 			break;
 		case '-':
 			res=a-b;
-//			write(res);
-			printf("%.1200f\n",res);
 			break;
 		case '*':
 			res=a*b;
-//			write(res);
-			printf("%.1200f\n",res);
 			break;
 		case '/':
 			res=a/b;
-//			write(res);
-			printf("%.1200f\n",res);
 			break;
 	}
+	write(res);
+	printf("%.1200f\n",res);
 //	}
 	return 0;
 }

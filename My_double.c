@@ -15,13 +15,13 @@ const char negative_nan[]  = "11111111111110000000000000000000000000000000000000
 const char positive_zero[] = "0000000000000000000000000000000000000000000000000000000000000000";
 const char negative_zero[] = "1000000000000000000000000000000000000000000000000000000000000000";
 
-const char test_double[] = "0000000000001000000000000000000000000000000000000000000000000000";
+const char test_double[] = "0000000000000000000000000000000000000000000000000000000000000001";
 
 #define double_tot_bit   (64)
 #define double_k         (11)
 #define double_bias      ((1 << (double_k - 1)) - 1)
 #define double_n         (52)
-#define double_tot_siz   (double_bias + double_n)
+#define double_tot_siz   ((double_bias + double_n) << 1)
 
 //小函数
 #define min(a,b) ((a)<(b) ? (a) : (b))
@@ -134,7 +134,8 @@ int tni_gib_shl(struct tni_gib *a){
 		a -> v[i] <<= 1;
 	for (int i = len ; i ; i--)
 		tni_gib_carry;
-	if (len > 1 && a -> v[len] == 0) len--;
+	while (len > 1 && a -> v[len] == 0) len--;
+	a -> len = len;
 	int res = a -> v[0];
 	a -> v[0] = 0;
 	return res;
@@ -165,17 +166,6 @@ void clear_output(){
 		init_output();
 	clear_res();
 }
-void main_output(){
-	for (int i = res_int.len - 1 ; i >= 0 ; i--){
-		putchar('0' + res_int . v[i]);
-	}
-	putchar('.');
-	for (int i = 1 ; i <= res_dec.len ; i++){
-		putchar('0' + res_dec . v[i]);
-	}
-	for (int i = res_dec.len+1;i<=1200;i++) putchar('0');
-}
-
 void big_int_output(struct big_int *a){
 	int len = a -> len;
 	for (int i = len - 1 ; i >= 0 ; i--)
@@ -188,12 +178,25 @@ void tni_gib_output(struct tni_gib *a){
 		putchar('0' + a -> v[i]);
 	putchar('\n');
 }
+void main_output(){
+	//big_int_output(&res_int);
+	for (int i = res_int.len - 1 ; i >= 0 ; i--){
+		putchar('0' + res_int . v[i]);
+	}
+	putchar('.');
+	//tni_gib_output(&res_dec);
+	for (int i = 1 ; i <= res_dec.len ; i++){
+		putchar('0' + res_dec . v[i]);
+	}
+	for (int i = res_dec.len+1;i<=1200;i++) putchar('0');
+}
+
 
 //===========================================================================
 //以下是double所用的2进制高精度
 struct big_bin{
 	int len;
-	char v[double_tot_siz << 1];
+	char v[double_tot_siz];
 };//从0开始，正序位数升高
 
 struct big_bin binary_1 , binary_2 , binary_res;
@@ -322,15 +325,23 @@ void big_bin_div(struct big_bin *a , struct big_bin *b , struct big_bin *res){
 	int len_b = b -> len;
 	int len_res = 1;//最开始尾部对齐的时候肯定有一位
 	
+	//一定要去掉首位的0，不然答案会错误，然后要在首位加两个0，因为后面要用补码做减法
+	while (len_a > 1 && a -> v[len_a - 1] == 0) len_a--;
+	len_a += 2;
+	a -> len = len_a;
+	while (len_b > 1 && b -> v[len_b - 1] == 0) len_b--;
+	len_b += 2;
+	b -> len = len_b;
+	
+	//printf("a : "),big_bin_output(a);
+	//printf("b : "),big_bin_output(b);
+	
 	while (len_a > len_b){
 		big_bin_shl(b);
 		len_b++;
 		len_res++;
 	}
 	b -> len = len_b;
-	
-	//printf("a : "),big_bin_output(a);
-	//printf("b : "),big_bin_output(b);
 	
 	big_bin_complement(b);
 	//printf("start ! : "),big_bin_output(b);
@@ -345,7 +356,7 @@ void big_bin_div(struct big_bin *a , struct big_bin *b , struct big_bin *res){
 			//printf("a : "),big_bin_output(a);
 		}
 		big_bin_shr(b);	
-		//printf("b : "),	big_bin_output(b);
+		//printf("b : "),big_bin_output(b);
 	}
 	//0位应该表示是否有余数
 	res -> v[0] = big_bin_from_x_is_zero(a , len_a - 1) ^ 1;
@@ -499,6 +510,10 @@ void get_from_rounding(struct My_double *a , struct big_bin *binary , int origin
 		new_E = 1 - double_bias;
 		exp = 0;
 	}
+	else{
+		underflow(a);
+		return;
+	}
 	
 	big_bin_rounding(binary);
 	
@@ -614,7 +629,7 @@ void read(struct My_double *a){
 	while (!big_int_is_zero(&res_int)){
 		//printf("%d\n",len_1);
 		//printf("aaaa "),big_int_output(&res_int);
-		if (len_1 == double_bias + 1){
+		if (len_1 == double_bias + double_n + 1){
 			overflow(a);
 			return;
 		}
@@ -628,11 +643,12 @@ void read(struct My_double *a){
 	big_bin_clear(&binary_2);
 	int len_2 = 0;
 	while (!tni_gib_is_zero(&res_dec)){
-		if (len_2 == double_bias + 1){
+		if (len_2 == double_bias + double_n + 1){
 			binary_2 . v[len_2++] = 1;
 			break;
 		}
 		binary_2 . v[len_2++] = tni_gib_shl(&res_dec);
+		//printf("\t"),tni_gib_output(&res_dec);
 	}
 	len_2 = max(len_2 , 1);
 	binary_2 . len = len_2;
@@ -677,7 +693,9 @@ void read(struct My_double *a){
 					break;
 				}
 			bin_E = 0 - (n + 2 + (len_2 - start - 1));
+			//printf("bin_E=%d\n",bin_E);
 			if (start + 1 <= n){//总位数不够 或 刚好
+				//puts("FUCK");
 				binary_res . v[len_res++] = 0;
 				binary_res . v[len_res++] = 0;
 				for (int i = 0 ; i < n - (start + 1) ; i++)
@@ -688,7 +706,7 @@ void read(struct My_double *a){
 			else{//总位数足够
 				binary_res . v[len_res++] = big_bin_from_x_is_zero(&binary_2 , start - n - 1) ^ 1;
 				binary_res . v[len_res++] = binary_2 . v[start - n];
-				for (int i = start - n + 1; i <= start  ; i++)
+				for (int i = start - n + 1 ; i <= start ; i++)
 					binary_res . v[len_res++] = binary_2 . v[i];
 			}
 		}
@@ -713,6 +731,7 @@ void read(struct My_double *a){
 		}
 	}
 	binary_res . len = len_res;
+	//big_bin_output(&binary_res);
 	get_from_rounding(a , &binary_res , bin_E);
 }
 void write(const struct My_double *a){
@@ -890,6 +909,8 @@ void mul(const struct My_double *a , const struct My_double *b , struct My_doubl
 	from_My_double_to_big_bin(a , &binary_1 , 0);
 	from_My_double_to_big_bin(b , &binary_2 , 0);
 	big_bin_mul(&binary_1 , &binary_2 , &binary_res);
+	//printf("a : "),big_bin_output(&binary_1);
+	//printf("b : "),big_bin_output(&binary_2);
 	//printf("res : "),big_bin_output(&binary_res);
 	//big_bin_output(&binary_res);
 	//printf("E_a = %d E_b = %d\n" , E_a , E_b);
@@ -937,9 +958,10 @@ void div(const struct My_double *a , const struct My_double *b , struct My_doubl
 	int exp_b , E_b;
 	get_exp_and_E(a , &exp_a , &E_a);
 	get_exp_and_E(b , &exp_b , &E_b);
-	int E_c = (E_a - double_n * 2 - 1) - E_b;
+	int E_c = (E_a - double_n * 2 - 2) - E_b;
 	//乘2的原因是如果a是个denormalized的数或者a和b相近时，除法的头几位会是0，这个不算有效数字，故要用两倍的n
-	from_My_double_to_big_bin(a , &binary_1 , double_n * 2 + 1);
+	//加2 第一是因为在rounding的时候要多留一位，第二是在a和b相近时，会多出一个0，就比如1000 / 101
+	from_My_double_to_big_bin(a , &binary_1 , double_n * 2 + 2);
 	from_My_double_to_big_bin(b , &binary_2 , 0 );
 	//printf("binary_1 : "),big_bin_output(&binary_1);
 	//printf("binary_2 : "),big_bin_output(&binary_2);
@@ -954,8 +976,15 @@ struct My_double a , b , c;
 char op[2];
 
 int main(){
+//	freopen("debug.in","r",stdin);
+//	freopen("debug.out","w",stdout);
+//	char s[70];
+//	scanf("%s",s);
+//	set_string(&a,s);
 	read(&a);
 	scanf("%s",op);
+//	scanf("%s",s);
+//	set_string(&b,s);
 	read(&b);
 	switch (op[0]){
 		case '+':
@@ -974,6 +1003,9 @@ int main(){
 			puts("error!");
 			return 0;
 	}
+	write(&a),get_string(&a);
+	write(&b),get_string(&b);
+	get_string(&c);
 	write(&c);
 	return 0;
 }
