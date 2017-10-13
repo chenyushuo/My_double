@@ -36,6 +36,9 @@ void read(double &a){
 	set_double(x,s);
 }
 int main(){
+	/*read(a);
+	printf("%.1200f\n",a);
+	printf("%e\n",a);*/
 	/*for (;;){
 	read(a);
 	printf("%.1200f\n",a);
@@ -48,30 +51,35 @@ int main(){
 			 (a <  b)      , (a <= b)      , (a >  b)      , (a >= b)      , (a != b)      , (a == b) );
 	for(;;){*/
 	//freopen("debug.in","r",stdin);
-	char op[2];
-	scanf("%lf%s%lf",&a,op,&b);
-	double res;
-	//read(a),read(b);
-//	ch='/';
-	printf("%.1200f\n",a),write(a);
-	printf("%.1200f\n",b),write(b);
-//	cout<<a<<' '<<b<<endl;
-	switch (op[0]){
-		case '+':
-			res=a+b;
-			break;
-		case '-':
-			res=a-b;
-			break;
-		case '*':
-			res=a*b;
-			break;
-		case '/':
-			res=a/b;
-			break;
+	puts("this is double!");
+	for (;;){
+		char op[2];
+		scanf("%lf%s%lf",&a,op,&b);
+		int digit=20;
+		//scanf("%d",&digit);
+		double res;
+		//read(a),read(b);
+	//	ch='/';
+	//	printf("%.1200f\n",a),write(a);
+	//	printf("%.1200f\n",b),write(b);
+	//	cout<<a<<' '<<b<<endl;
+		switch (op[0]){
+			case '+':
+				res=a+b;
+				break;
+			case '-':
+				res=a-b;
+				break;
+			case '*':
+				res=a*b;
+				break;
+			case '/':
+				res=a/b;
+				break;
+		}
+	//	write(res);
+		printf("%.*f\n",digit,res);
+	//	}
 	}
-	write(res);
-	printf("%.1200f\n",res);
-//	}
 	return 0;
 }

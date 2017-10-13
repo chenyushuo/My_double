@@ -1,5 +1,5 @@
-#include<stdio.h>
-#include<string.h>
+#include <stdio.h>
+#include <string.h>
 //这个double是使用IEEE754标准
 
 typedef long long int64;
@@ -15,7 +15,7 @@ const char negative_nan[]  = "11111111111110000000000000000000000000000000000000
 const char positive_zero[] = "0000000000000000000000000000000000000000000000000000000000000000";
 const char negative_zero[] = "1000000000000000000000000000000000000000000000000000000000000000";
 
-const char test_double[] = "0000000000000000000000000000000000000000000000000000000000000001";
+const char test_double[] = "0000000000010000000000000000000000000000000000000000000000000000";
 
 #define double_tot_bit   (64)
 #define double_k         (11)
@@ -178,17 +178,68 @@ void tni_gib_output(struct tni_gib *a){
 		putchar('0' + a -> v[i]);
 	putchar('\n');
 }
-void main_output(){
-	//big_int_output(&res_int);
+
+char tni_gib_from_x_is_zero(const struct tni_gib *a , const int x){
+	int len = a -> len;
+	for (int i = x ; i <= len ; i++)
+		if (a -> v[i])
+			return 0;
+	return 1;
+}
+void main_output(const int dec_digit){
+	if (dec_digit != -1){
+		char flag = 0;
+		if (res_dec . v[dec_digit + 1] >= 6)
+			flag = 1;
+		if (res_dec . v[dec_digit + 1] == 5){
+			if (!tni_gib_from_x_is_zero(&res_dec , dec_digit + 2))
+				flag = 1;
+			else{
+				if (dec_digit){
+					if (res_dec . v[dec_digit] & 1)
+						flag = 1;
+				}
+				else{
+					if (res_int . v[0] & 1)
+						flag = 1;
+				}
+			}
+		}
+		if (flag){
+			res_dec . v[dec_digit]++;
+			for (int i = dec_digit ; i ; i--){
+				if (res_dec . v[i] >= 10){
+					res_dec . v[i - 1] ++;
+					res_dec . v[i] -= 10;
+				}
+				else break;
+			}
+			if (res_dec . v[0]){
+				res_dec . v[0] = 0;
+				res_int . v[0]++;
+				int len_int = res_int . len;
+				for (int i = 0 ; i < len_int ; i++){
+					if (res_int . v[i] >= 10){
+						res_int . v[i + 1] ++;
+						res_int . v[i] -= 10;
+					}
+					else break;
+				}
+				if (res_int . v[len_int]) len_int++;
+				res_int . len = len_int;
+			}
+		}
+		res_dec . len = dec_digit;
+	}
 	for (int i = res_int.len - 1 ; i >= 0 ; i--){
 		putchar('0' + res_int . v[i]);
 	}
-	putchar('.');
-	//tni_gib_output(&res_dec);
-	for (int i = 1 ; i <= res_dec.len ; i++){
+	int len_dec = res_dec . len;
+	if (len_dec) putchar('.');
+	for (int i = 1 ; i <= len_dec ; i++){
 		putchar('0' + res_dec . v[i]);
 	}
-	for (int i = res_dec.len+1;i<=1200;i++) putchar('0');
+	//for (int i = res_dec.len+1;i<=1200;i++) putchar('0');
 }
 
 
@@ -273,7 +324,6 @@ void big_bin_add(const struct big_bin *a , const struct big_bin *b , struct big_
 		}
 	if (res -> v[len])
 		res -> v[len] = 0;
-	//while (res -> v[len - 1] == 0) len--;
 	res -> len = len;
 }
 void big_bin_mul(const struct big_bin *a , const struct big_bin *b , struct big_bin *res){//不带补码的乘法
@@ -451,7 +501,7 @@ void My_double_clear(struct My_double *a){
 	memset(a -> digit , 0 , sizeof(a -> digit));
 }
 void overflow(struct My_double *a){
-	//printf("overflow!\n");
+	printf("overflow!\n");
 	if (get_s(a)) set_string(a , negative_inf);
 	else set_string(a , positive_inf);
 }
@@ -464,7 +514,7 @@ void set_zero(struct My_double *a){
 	else set_string(a , positive_zero);
 }
 void underflow(struct My_double *a){
-	//printf("underflow!\n");
+	printf("underflow!\n");
 	set_zero(a);
 }
 
@@ -734,7 +784,7 @@ void read(struct My_double *a){
 	//big_bin_output(&binary_res);
 	get_from_rounding(a , &binary_res , bin_E);
 }
-void write(const struct My_double *a){
+void write(const struct My_double *a , const int dec_digit){
 	int s = get_s(a);
 	int exp = get_exp(a);
 	int64 frac = get_frac(a);
@@ -759,7 +809,7 @@ void write(const struct My_double *a){
 				if (E - i >= 0) big_int_add(&res_int , &power2[E - i]);
 				else tni_gib_add(&res_dec , &power5[i - E]);
 			}
-		main_output();
+		main_output(dec_digit);
 	}
 	putchar('\n');
 }
@@ -768,7 +818,7 @@ void write(const struct My_double *a){
 //2^E 2^(E-1) 2^(E-2) 2^(E-3)     2^(E-52)
 
 //将My_double转化为binary，而且binary要位移delta位
-//并且会在开头加两个0（因为要用补码来代替，不能让两个正数加的爆到负数）
+//并且会在开头加两个0（因为要用补码来代替负数，不能让两个正数加的爆到负数）
 void from_My_double_to_big_bin(const struct My_double *a , struct big_bin *binary , const int delta){
 	big_bin_clear(binary);
 	int len_bin = 0;
@@ -976,36 +1026,43 @@ struct My_double a , b , c;
 char op[2];
 
 int main(){
+//	set_string(&a , test_double);
+//	write(&a , -1);
 //	freopen("debug.in","r",stdin);
 //	freopen("debug.out","w",stdout);
 //	char s[70];
 //	scanf("%s",s);
 //	set_string(&a,s);
-	read(&a);
-	scanf("%s",op);
-//	scanf("%s",s);
-//	set_string(&b,s);
-	read(&b);
-	switch (op[0]){
-		case '+':
-			plus(&a , &b , &c);
-			break;
-		case '-':
-			minus(&a , &b , &c);
-			break;
-		case '*':
-			mul(&a , &b , &c);
-			break;
-		case '/':			
-			div(&a , &b , &c);
-			break;
-		default:
-			puts("error!");
-			return 0;
+	puts("this is my double!");
+	for (;;){
+		read(&a);
+		scanf("%s" , op);
+	//	scanf("%s",s);
+	//	set_string(&b,s);
+		read(&b);
+		int digit = -1;
+		//scanf("%d",&digit);
+		switch (op[0]){
+			case '+':
+				plus(&a , &b , &c);
+				break;
+			case '-':
+				minus(&a , &b , &c);
+				break;
+			case '*':
+				mul(&a , &b , &c);
+				break;
+			case '/':			
+				div(&a , &b , &c);
+				break;
+			default:
+				puts("error!");
+				return 0;
+		}
+		/*write(&a),*/get_string(&a);
+		/*write(&b),*/get_string(&b);
+		get_string(&c);
+		write(&c , digit);
 	}
-	write(&a),get_string(&a);
-	write(&b),get_string(&b);
-	get_string(&c);
-	write(&c);
 	return 0;
 }
